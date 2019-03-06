@@ -52,7 +52,6 @@ func ParseLine(line string) (Translation, error) {
 
 	fmt.Printf("%v\n", t)
 	fmt.Printf("fin %s\n", t.Finnish)
-	fmt.Printf("fin %s\n", t.Finnish[0])
 	fmt.Printf("eng %s\n", t.English)
 	//os.Exit(1)
 	return t, nil
@@ -111,10 +110,6 @@ func ParseLineForFinnishPart(line string) (*Translation, error) {
 				}
 			}
 		}
-		/*
-			if len(word) > 0 {
-				t.Finnish = append(t.Finnish, word)
-			}*/
 	}
 
 	if len(t.Finnish) == 0 {
@@ -141,7 +136,7 @@ func ParseHttpTags(word string) (int, bool, bool, string, string) {
 	var tag_end int = 0
 	var content_end int = 0
 	for i, ch := range word {
-		fmt.Printf("%c ", ch)
+		//fmt.Printf("%c ", ch)
 		if ch == '<' {
 			tag_start = i
 		}
@@ -159,7 +154,7 @@ func ParseHttpTags(word string) (int, bool, bool, string, string) {
 	}
 	var is_end_tag bool = false
 	if word[tag_start+1] == '/' || word[tag_end-1] == '/' {
-		fmt.Printf("tag %s\n", word[tag_start:tag_end])
+		//fmt.Printf("tag %s\n", word[tag_start:tag_end])
 		is_end_tag = true
 		if word[tag_start+1] == '/' {
 			return tag_end, false, is_end_tag, word[0:content_end], word[tag_start+2 : tag_end]
@@ -171,7 +166,7 @@ func ParseHttpTags(word string) (int, bool, bool, string, string) {
 		if tag_start != -1 && tag_end > tag_start && content_end == 0 {
 			is_start_tag = true
 		}
-		fmt.Printf("tag %s\n", word[tag_start:tag_end])
+		//fmt.Printf("tag %s\n", word[tag_start:tag_end])
 		return tag_end, is_start_tag, is_end_tag, word[0:content_end], word[tag_start+1 : tag_end]
 	}
 }
