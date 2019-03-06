@@ -1,7 +1,6 @@
 package dictscanner
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 	"text/scanner"
@@ -69,7 +68,7 @@ func ParseLineForFinnishPart(line string) (*Translation, error) {
 			continue
 		}
 		//var http_tag_name_end string
-		if ((word[0] >= 'A' && word[0] <= 'Ö') || word[0] == '<') && len(word) > 1 {
+		if ((word[0] >= 'A' && word[0] <= 'Ö') || word[0] == '<' || word[0] == '-') && len(word) > 1 {
 			var next_is_comment bool = false
 			for {
 				cut_end, is_start_tag, is_end_tag, content, tag := ParseHttpTags(word)
@@ -91,9 +90,10 @@ func ParseLineForFinnishPart(line string) (*Translation, error) {
 							t.Comments = append(t.Comments, tag)
 						}
 					} else {
-						t.Comments = append(t.Comments, tag)
 						if len(content) > 0 {
-							t.Comments = append(t.Comments, ","+content)
+							t.Comments = append(t.Comments, tag+":"+content)
+						} else {
+							t.Comments = append(t.Comments, tag)
 						}
 					}
 				}
@@ -105,6 +105,9 @@ func ParseLineForFinnishPart(line string) (*Translation, error) {
 						break
 					}
 				} else {
+					if is_end_tag == false && is_start_tag == false && len(content) > 0 {
+						t.Finnish = append(t.Finnish, content)
+					}
 					word = word[cut_end+1:]
 					next_is_comment = true
 				}
@@ -113,10 +116,10 @@ func ParseLineForFinnishPart(line string) (*Translation, error) {
 	}
 
 	if len(t.Finnish) == 0 {
-		return nil, errors.New("no Finnish words found")
+		return nil, fmt.Errorf("no Finnish words found: %s", line)
 	}
 
-	var found bool = false
+	var found = false
 	for _, word := range parts {
 		//word := parts[x]
 		//fmt.Println(parts[i])
