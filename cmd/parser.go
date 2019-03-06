@@ -68,7 +68,6 @@ func ScanFile(f *os.File, fw *os.File) error {
 	return nil
 }
 
-/* foobar*/
 func HandleFile(f os.File, fw os.File) error {
 	rd := bufio.NewReader(&f)
 	for {
@@ -102,8 +101,4 @@ func HandleFile(f os.File, fw os.File) error {
 		fw.WriteString("\r\n")
 	}
 	return nil
-}
-
-func hello() {
-	fmt.Println("joo")
 }
