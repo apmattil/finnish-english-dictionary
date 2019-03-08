@@ -56,10 +56,11 @@ func ParseLine(line string) (Translation, error) {
 	return t, nil
 }
 
-func ParseLineForFinnishPart(line string) (*Translation, error) {
+func ParseLineWords(line string) (*Translation, error) {
 	parts := strings.Split(line, " ")
 
 	var t Translation
+	var inside_comment_tag string = ""
 	for _, word := range parts {
 		if word[0] == '|' {
 			break
@@ -69,47 +70,44 @@ func ParseLineForFinnishPart(line string) (*Translation, error) {
 		}
 		//var http_tag_name_end string
 		if ((word[0] >= 'A' && word[0] <= 'Ö') || word[0] == '<' || word[0] == '-') && len(word) > 1 {
-			var next_is_comment bool = false
 			for {
 				cut_end, is_start_tag, is_end_tag, content, tag := ParseHttpTags(word)
-				if len(tag) == 0 {
-					if len(content) == 0 && len(word) > 0 {
-						t.Finnish = append(t.Finnish, word)
+				if is_start_tag {
+					inside_comment_tag = inside_comment_tag + tag + ":"
+				}
+				if len(inside_comment_tag) > 0 {
+					if len(content) > 0 {
+						inside_comment_tag = inside_comment_tag + content + " "
 					}
-					break
-				}
-				if is_start_tag == true {
-					word = word[cut_end+1:]
-					next_is_comment = true
-					continue
-				}
-				if (len(tag) > 0 && is_end_tag == true) || next_is_comment == true {
-					if len(content) > 0 && next_is_comment == false {
-						t.Finnish = append(t.Finnish, content)
-						if len(tag) > 0 {
-							t.Comments = append(t.Comments, tag)
+					if is_end_tag {
+						t.Comments = append(t.Comments, inside_comment_tag)
+						inside_comment_tag = ""
+						word = word[cut_end+1:]
+						if len(word) == 0 {
+							break
 						}
-					} else {
-						if len(content) > 0 {
-							t.Comments = append(t.Comments, tag+":"+content)
+						continue
+					}
+				}
+				if is_start_tag == false && len(inside_comment_tag) == 0 {
+					if len(content) > 0 {
+						t.Finnish = append(t.Finnish, content)
+					}
+					if len(inside_comment_tag) == 0 {
+						if len(tag) > 0 && is_end_tag == true {
+							t.Comments = append(t.Comments, tag)
 						} else {
-							t.Comments = append(t.Comments, tag)
+							t.Comments = append(t.Comments, "none")
 						}
 					}
 				}
-				if is_end_tag == true {
-					//t.Finnish = append(t.Finnish, word[0:cut_end-(len(tag)+2)])
-					next_is_comment = false
+				if len(tag) > 0 {
 					word = word[cut_end+1:]
-					if len(word) == 0 {
-						break
-					}
 				} else {
-					if is_end_tag == false && is_start_tag == false && len(content) > 0 {
-						t.Finnish = append(t.Finnish, content)
-					}
-					word = word[cut_end+1:]
-					next_is_comment = true
+					word = word[cut_end:]
+				}
+				if len(word) == 0 {
+					break
 				}
 			}
 		}
@@ -151,6 +149,10 @@ func ParseHttpTags(word string) (int, bool, bool, string, string) {
 
 	if (tag_end > tag_start) && tag_start > 0 {
 		content_end = tag_start
+	} else {
+		if tag_start == -1 && tag_end == 0 {
+			content_end = len(word)
+		}
 	}
 	if tag_start == -1 {
 		return content_end, false, false, word[0:content_end], ""
@@ -169,7 +171,15 @@ func ParseHttpTags(word string) (int, bool, bool, string, string) {
 		if tag_start != -1 && tag_end > tag_start && content_end == 0 {
 			is_start_tag = true
 		}
+		var ret_len int = tag_end
+		if tag_start != -1 && (tag_end > tag_start) {
+			if is_start_tag && is_end_tag == false {
+				ret_len = tag_end
+			} else {
+				ret_len = tag_start - 1
+			}
+		}
 		//fmt.Printf("tag %s\n", word[tag_start:tag_end])
-		return tag_end, is_start_tag, is_end_tag, word[0:content_end], word[tag_start+1 : tag_end]
+		return ret_len, is_start_tag, is_end_tag, word[0:content_end], word[tag_start+1 : tag_end]
 	}
 }

@@ -8,7 +8,7 @@ import (
 	"log"
 	"os"
 
-	"finnish-english-dictionary"
+	dictscanner "finnish-english-dictionary"
 )
 
 func main() {
@@ -43,26 +43,28 @@ func ScanFile(f *os.File, fw *os.File) error {
 	for scanner.Scan() {
 		line := scanner.Text()
 		//var translations []Translation
-		t, err := dictscanner.ParseLineForFinnishPart(line)
+		t, err := dictscanner.ParseLineWords(line)
 		if err != nil {
 			fmt.Println(err.Error())
 			continue
 		}
 		if len(t.English[0]) > 0 && len(t.Finnish[0]) > 0 {
 			for i, word := range t.Finnish {
-				if i > 0 {
-					fw.WriteString(",")
-				}
 				fw.WriteString(word)
-			}
-			fw.WriteString("\t")
-			for i, word := range t.English {
-				if i > 0 {
-					fw.WriteString(" ")
+				fw.WriteString("\t")
+				if len(t.Comments[i]) > 0 && t.Comments[i] != "none" {
+					fw.WriteString("comment: ")
+					fw.WriteString(t.Comments[i])
+					fw.WriteString(" ; ")
 				}
-				fw.WriteString(word)
+				for x, word := range t.English {
+					if x > 0 {
+						fw.WriteString(" ")
+					}
+					fw.WriteString(word)
+				}
+				fw.WriteString("\r\n")
 			}
-			fw.WriteString("\n")
 		}
 	}
 	return nil
@@ -102,3 +104,18 @@ func HandleFile(f os.File, fw os.File) error {
 	}
 	return nil
 }
+
+/*
+lisa:
+           <idx:orth>journal
+           <idx:infl>
+             <idx:iform value="journals"/>
+           </idx:infl>
+         </idx:orth>
+orig:
+           <idx:orth>
+					 journal
+					 </idx:orth>
+					 <idx:key key="journal">
+
+*/
