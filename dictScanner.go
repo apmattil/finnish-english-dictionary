@@ -2,6 +2,7 @@ package dictscanner
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"text/scanner"
 )
@@ -181,5 +182,26 @@ func ParseHttpTags(word string) (int, bool, bool, string, string) {
 		}
 		//fmt.Printf("tag %s\n", word[tag_start:tag_end])
 		return ret_len, is_start_tag, is_end_tag, word[0:content_end], word[tag_start+1 : tag_end]
+	}
+}
+
+func (t *Translation) WriteTranslation(fw *os.File) {
+	if len(t.English[0]) > 0 && len(t.Finnish[0]) > 0 {
+		for i, word := range t.Finnish {
+			fw.WriteString(word)
+			fw.WriteString("\t")
+			if len(t.Comments[i]) > 0 && t.Comments[i] != "none" {
+				fw.WriteString("comment: ")
+				fw.WriteString(t.Comments[i])
+				fw.WriteString(" ; ")
+			}
+			for x, word := range t.English {
+				if x > 0 {
+					fw.WriteString(" ")
+				}
+				fw.WriteString(word)
+			}
+			fw.WriteString("\r\n")
+		}
 	}
 }
