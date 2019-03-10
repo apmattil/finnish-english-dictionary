@@ -2,7 +2,6 @@ package dictscanner
 
 import (
 	"fmt"
-	"os"
 	"strings"
 	"text/scanner"
 )
@@ -11,6 +10,7 @@ type Translation struct {
 	Finnish  []string
 	English  []string
 	Comments []string
+	//Lines    []string
 }
 
 func ParseLine(line string) (Translation, error) {
@@ -185,23 +185,24 @@ func ParseHttpTags(word string) (int, bool, bool, string, string) {
 	}
 }
 
-func (t *Translation) WriteTranslation(fw *os.File) {
-	if len(t.English[0]) > 0 && len(t.Finnish[0]) > 0 {
-		for i, word := range t.Finnish {
-			fw.WriteString(word)
-			fw.WriteString("\t")
-			if len(t.Comments[i]) > 0 && t.Comments[i] != "none" {
-				fw.WriteString("comment: ")
-				fw.WriteString(t.Comments[i])
-				fw.WriteString(" ; ")
+func (t *Translation) TransfomToLines(lines *[]string) {
+
+	for i, word := range t.Finnish {
+		var line string
+		//lines = append(lines, word+"\t")
+		line = line + word + "\t"
+		for x, word := range t.English {
+			if x > 0 {
+				line = line + " "
 			}
-			for x, word := range t.English {
-				if x > 0 {
-					fw.WriteString(" ")
-				}
-				fw.WriteString(word)
-			}
-			fw.WriteString("\r\n")
+			line = line + word
 		}
+		if len(t.Comments[i]) > 0 && t.Comments[i] != "none" {
+			line = line + "; editorial comment: "
+			line = line + t.Comments[i]
+			line = line + " ; "
+		}
+		*lines = append(*lines, line)
+		//line = line + "\r\n"
 	}
 }
