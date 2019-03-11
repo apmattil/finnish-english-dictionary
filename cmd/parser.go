@@ -59,18 +59,25 @@ func ScanFile(f *os.File, fw *os.File) error {
 			fmt.Printf("'%s'\n", line)
 		}
 	*/
+
+	handleDublicates(&lines)
+
 	for _, line := range lines {
-		if line[0] != '-' {
-			fw.WriteString(line)
-			fw.WriteString("\r\n")
+		if len(line) > 0 {
+			if line[0] != '-' {
+				fw.WriteString(line)
+				fw.WriteString("\r\n")
+			}
 		}
 	}
 	for _, line := range lines {
-		if line[0] == '-' {
-			fw.WriteString(line)
-			fw.WriteString("\r\n")
-		} else {
-			break
+		if len(line) > 0 {
+			if line[0] == '-' {
+				fw.WriteString(line)
+				fw.WriteString("\r\n")
+			} else {
+				break
+			}
 		}
 	}
 
@@ -89,6 +96,38 @@ func sortByFinnishAndLen(lines []string) {
 			return parts1[0] < parts2[0]
 		}
 	})
+}
+
+func handleDublicates(lines *[]string) {
+	j := 0
+	store_index := -1
+	for i := 1; i < len(*lines); i++ {
+		if i == j {
+			continue
+		}
+
+		parts1 := strings.Split((*lines)[j], "\t")
+		parts2 := strings.Split((*lines)[i], "\t")
+
+		if len(parts1[0]) > 0 && len(parts2[0]) > 0 {
+			if parts1[0] == parts2[0] {
+				if store_index == -1 {
+					store_index = j
+					(*lines)[store_index] = (*lines)[j]
+				}
+				(*lines)[store_index] = (*lines)[store_index] + "; " + parts2[1]
+				(*lines)[i] = ""
+				if store_index != j {
+					(*lines)[j] = ""
+				}
+				i++
+				j++
+			} else {
+				store_index = -1
+			}
+		}
+		j++
+	}
 }
 
 /*
