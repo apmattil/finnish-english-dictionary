@@ -1,19 +1,22 @@
 package dictscanner
 
 import (
+	"bufio"
 	"fmt"
+	"os"
+	"regexp"
 	"strings"
 	"text/scanner"
 )
 
 type Translation struct {
-	Finnish  []string
-	English  []string
-	Comments []string
-	//Lines    []string
+	Finnish                 []string
+	English                 []string
+	Comments                []string
+	EnglishWordTranslations []string
 }
 
-func ParseLine(line string) (Translation, error) {
+func ParseLine(line string, f_finn_translations *os.File) (Translation, error) {
 
 	var s scanner.Scanner
 
@@ -45,21 +48,27 @@ func ParseLine(line string) (Translation, error) {
 			}
 			if str[0] >= 'A' && str[0] <= 'Ö' && len(str) > 1 {
 				t.Finnish = append(t.Finnish, str)
+				t.GetEnglishTranslationWords(str, f_finn_translations)
 				//fmt.Printf("%v\n", t.Finnish)
 			}
 		}
 	}
 
-	fmt.Printf("%v\n", t)
-	fmt.Printf("fin %s\n", t.Finnish)
-	fmt.Printf("eng %s\n", t.English)
+	/*
+		fmt.Printf("%v\n", t)
+		fmt.Printf("fin %s\n", t.Finnish)
+		fmt.Printf("eng %s\n", t.English)
+	*/
 	//os.Exit(1)
 	return t, nil
 }
 
-func ParseLineWords(line string) (*Translation, error) {
-	parts := strings.Split(line, " ")
+var ari int
 
+func ParseLineWords(line string, f_finn_translations *os.File) (*Translation, error) {
+	parts := strings.Split(line, " ")
+	ari++
+	fmt.Println(ari)
 	var t Translation
 	var inside_comment_tag string = ""
 	for _, word := range parts {
@@ -93,6 +102,7 @@ func ParseLineWords(line string) (*Translation, error) {
 				if is_start_tag == false && len(inside_comment_tag) == 0 {
 					if len(content) > 0 {
 						t.Finnish = append(t.Finnish, content)
+						t.GetEnglishTranslationWords(content, f_finn_translations)
 					}
 					if len(inside_comment_tag) == 0 {
 						if len(tag) > 0 && is_end_tag == true {
@@ -185,12 +195,20 @@ func ParseHttpTags(word string) (int, bool, bool, string, string) {
 	}
 }
 
-func (t *Translation) TransfomToLines(lines *[]string) {
+func (t *Translation) TransformToLines(lines *[]string) {
 
 	for i, word := range t.Finnish {
 		var line string
 		//lines = append(lines, word+"\t")
 		line = line + word + "\t"
+
+		for z, word0 := range t.EnglishWordTranslations {
+			if z > 0 {
+				line = line + ";"
+			}
+			line = line + word0
+		}
+
 		for x, word := range t.English {
 			if x > 0 {
 				line = line + " "
@@ -204,5 +222,39 @@ func (t *Translation) TransfomToLines(lines *[]string) {
 		}
 		*lines = append(*lines, line)
 		//line = line + "\r\n"
+	}
+}
+
+func (t *Translation) GetEnglishTranslationWords(word string, f *os.File) {
+
+	f.Seek(0, 0)
+	scanner := bufio.NewScanner(f)
+
+	pattern := "\t" + word + ",|," + word + ",|," + word + "$" + "|\t" + word + "$"
+	r, err := regexp.Compile(pattern)
+	if err != nil {
+		// handle error
+		fmt.Printf("regexp does nnt compile %s\n", err.Error())
+		return
+	}
+
+	i := 0
+	for scanner.Scan() {
+		i++
+		matches := r.FindStringSubmatch(scanner.Text())
+		//fmt.Printf("line : %s\n", scanner.Text())
+		if len(matches) > 0 {
+			parts := strings.Split(scanner.Text(), "\t")
+			parts = strings.Split(parts[1], ",")
+			for _, w := range parts {
+				if w == word {
+					//fmt.Printf("%d:%d str %s\n", i, j, scanner.Text())
+					parts := strings.Split(scanner.Text(), "\t")
+					//fmt.Printf("eng %s %s\n", w, parts[0])
+					t.EnglishWordTranslations = append(t.EnglishWordTranslations, parts[0]+";")
+				}
+			}
+			break // we should only have one word at fin-eng translation file
+		}
 	}
 }
