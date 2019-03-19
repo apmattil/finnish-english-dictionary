@@ -248,9 +248,7 @@ func (t *Translation) GetEnglishTranslationWords(word string, f *os.File) {
 			parts = strings.Split(parts[1], ",")
 			for _, w := range parts {
 				if w == word {
-					//fmt.Printf("%d:%d str %s\n", i, j, scanner.Text())
 					parts := strings.Split(scanner.Text(), "\t")
-					//fmt.Printf("eng %s %s\n", w, parts[0])
 					t.EnglishWordTranslations = append(t.EnglishWordTranslations, parts[0]+";")
 				}
 			}

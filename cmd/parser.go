@@ -4,18 +4,29 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 
 	dictscanner "finnish-english-dictionary"
 )
 
+//  ./mobigen.exe utf8 finnish-english-dict.opf
+
 func main() {
-	// Open the file and scan it.
-	f, err := os.Open("data.adj")
+	f_opf, err := os.Create("fin-eng.opf")
 	if err != nil {
-		fmt.Printf("can not open\n")
+		fmt.Printf("can not open %s\n", err.Error())
 		panic(err)
+	}
+	printOpfHeader(f_opf)
+	PrintOpfTailer(f_opf)
+
+	// Open the file and scan it.
+	f, err1 := os.Open("data2.adj")
+	if err1 != nil {
+		fmt.Printf("can not open\n")
+		panic(err1)
 	}
 
 	fw, werr := os.Create("parsed.txt")
@@ -34,6 +45,7 @@ func main() {
 		f.Close()
 		fw.Close()
 		fr.Close()
+		f_opf.Close()
 	}()
 
 	err = ScanFile(f, fw, fr)
@@ -89,6 +101,21 @@ func ScanFile(f *os.File, fw *os.File, fr *os.File) error {
 		}
 	}
 
+	f_html, werr2 := os.Create("out0.html")
+	if werr2 != nil {
+		fmt.Printf("can not open\n")
+		panic(werr2)
+	}
+	writeHtmlPageHead(f_html)
+	for _, line := range lines {
+		if len(line) > 0 {
+			if line[0] != '-' {
+				writeHtmlTag(f_html, line)
+			}
+		}
+	}
+	writeHtmlTail(f_html)
+	f_html.Close()
 	return nil
 }
 
@@ -130,40 +157,87 @@ func handleDublicates(lines *[]string) {
 	}
 }
 
-/*
-	scanner := bufio.NewScanner(f)
+func writeHtmlTag(f *os.File, line string) {
+	parts := strings.Split(line, "\t")
+	var fin_re = regexp.MustCompile(`_`)
+	fin_s := fin_re.ReplaceAllString(parts[0], ` `)
+	var re = regexp.MustCompile(`;`)
+	s := re.ReplaceAllString(parts[1], `</p>`+"\r\n"+`<p>`)
+	re = regexp.MustCompile(`<p></p>`)
+	s = re.ReplaceAllString(s, ``)
+	f.WriteString(`<mbp:pagebreak/>`)
+	f.WriteString(`<idx:entry name="word" scriptable="yes">` + "\r\n" +
+		`<h2>` + "\r\n" +
+		"\t" + `<idx:orth>` + fin_s + `</idx:orth><idx:key key="` + fin_s + `">` + "\r\n" +
+		`</h2>` + "\r\n" +
+		"<p>" + s + "</p>" + "\r\n" +
+		`</idx:entry>`)
+}
 
-	for scanner.Scan() {
-		line := scanner.Text()
-		parts := strings.Split(line, "\t")
-		finnWords := strings.Split(parts[1], ",")
-		// loop trough finnish words
-		for i, word := range finnWords {
-			// loop trough translations
-			for j, t := range translations {
-				// loop trough finnish words of translation
-				for k, w := range t.Finnish {
-					if w == word {
-						alreadyFound := false
-						var w2 string
-						z := 0
-						for z, w2 = range t.EnglishWordTranslations {
-							if w2 == word {
-								alreadyFound = true
-							}
-						}
-						if alreadyFound == false {
-							fmt.Printf("found %d:%d:%d:%d  %s : %s\n", i, j, k, z, parts[0], word)
-							t.EnglishWordTranslations = append(t.EnglishWordTranslations, parts[0])
-						}
-						break
-					}
-					break
-				}
-			}
-		}
-	}
-*/
+func writeHtmlPageHead(f *os.File) {
+	f.WriteString(`<?xml version="1.0" encoding="utf-8"?>
+<html xmlns:idx="www.mobipocket.com" xmlns:mbp="www.mobipocket.com" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <body>
+    <mbp:pagebreak/>
+    <mbp:frameset>
+      <mbp:slave-frame display="bottom" device="all" breadth="auto" leftmargin="0" rightmargin="0" bottommargin="0" topmargin="0">
+        <div align="center" bgcolor="yellow"/>
+        <a onclick="index_search()">Dictionary Search</a>
+        </div>
+      </mbp:slave-frame>` + "\r\n")
+}
+
+func writeHtmlTail(f *os.File) {
+	f.WriteString(`</mbp:frameset>
+              </body>
+            </html>
+            `)
+}
+
+func printOpfHeader(f *os.File) {
+	f.WriteString(`<?xml version="1.0"?><!DOCTYPE package SYSTEM "oeb1.ent">
+
+<!-- the command line instruction 'prcgen dictionary.opf' will produce the dictionary.prc file in the same folder-->
+<!-- the command line instruction 'mobigen dictionary.opf' will produce the dictionary.mobi file in the same folder-->
+
+<package unique-identifier="uid" xmlns:dc="Dublin Core">
+
+<metadata>
+	<dc-metadata>
+		<dc:Identifier id="uid">fin-eng-dictionary</dc:Identifier>
+		<!-- Title of the document -->
+		<dc:Title><h2>Finnish to English dictionary</h2></dc:Title>
+		<dc:Language>FI</dc:Language>
+	</dc-metadata>
+	<x-metadata>
+	        <output encoding="utf-8" flatten-dynamic-dir="yes"/>
+		<DictionaryInLanguage>FI</DictionaryInLanguage>
+		<DictionaryOutLanguage>EN</DictionaryOutLanguage>
+	</x-metadata>
+</metadata>
+
+<!-- list of all the files needed to produce the .prc file -->
+<manifest>`)
+}
+
+func PrintOpfTailer(f *os.File) {
+	f.WriteString(`<!-- list of all the files needed to produce the .prc file -->
+<manifest>
+  <item href="en-fi-cover.jpg" id="my-cover-image" media-type="image/jpeg"/>
+ <item id="dictionary0" href="en-fi0.html" media-type="text/x-oeb1-document"/>
+</manifest>
+
+
+<!-- list of the html files in the correct order  -->
+<spine>
+	<itemref idref="dictionary0"/>
+</spine>
+
+<tours/>
+<guide> <reference type="search" title="Dictionary Search" onclick= "index_search()"/> </guide>
+</package>
+`)
+}
 
 /*
 lisa:
