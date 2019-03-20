@@ -2,7 +2,9 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"regexp"
 	"sort"
@@ -23,7 +25,7 @@ func main() {
 	PrintOpfTailer(f_opf)
 
 	// Open the file and scan it.
-	f, err1 := os.Open("data2.adj")
+	f, err1 := os.Open("data.adj")
 	if err1 != nil {
 		fmt.Printf("can not open\n")
 		panic(err1)
@@ -35,33 +37,35 @@ func main() {
 		panic(werr)
 	}
 
-	fr, err := os.Open("out.txt")
+	//fr, err := os.Open("out.txt")
+	b, err := ioutil.ReadFile("out.txt")
 	if err != nil {
 		fmt.Printf("can not open\n")
 		panic(err)
 	}
+	f_finn_translations := bufio.NewScanner(bytes.NewReader(b))
 
 	defer func() {
 		f.Close()
 		fw.Close()
-		fr.Close()
+		//fr.Close()
 		f_opf.Close()
 	}()
 
-	err = ScanFile(f, fw, fr)
+	err = ScanFile(f, fw, f_finn_translations)
 	if err != nil {
 		fmt.Printf("handle failed %s\n", err.Error())
 		panic(err)
 	}
 }
 
-func ScanFile(f *os.File, fw *os.File, fr *os.File) error {
+func ScanFile(f *os.File, fw *os.File, f_finn_translations *bufio.Scanner) error {
 	scanner := bufio.NewScanner(f)
 
 	var translations []dictscanner.Translation
 	for scanner.Scan() {
 		line := scanner.Text()
-		t, err := dictscanner.ParseLineWords(line, fr)
+		t, err := dictscanner.ParseLineWords(line, f_finn_translations)
 		if err != nil {
 			fmt.Println(err.Error())
 			continue

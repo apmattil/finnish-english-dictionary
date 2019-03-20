@@ -3,7 +3,6 @@ package dictscanner
 import (
 	"bufio"
 	"fmt"
-	"os"
 	"regexp"
 	"strings"
 	"text/scanner"
@@ -16,7 +15,7 @@ type Translation struct {
 	EnglishWordTranslations []string
 }
 
-func ParseLine(line string, f_finn_translations *os.File) (Translation, error) {
+func ParseLine(line string, f_finn_translations *bufio.Scanner) (Translation, error) {
 
 	var s scanner.Scanner
 
@@ -65,7 +64,7 @@ func ParseLine(line string, f_finn_translations *os.File) (Translation, error) {
 
 var ari int
 
-func ParseLineWords(line string, f_finn_translations *os.File) (*Translation, error) {
+func ParseLineWords(line string, f_finn_translations *bufio.Scanner) (*Translation, error) {
 	parts := strings.Split(line, " ")
 	ari++
 	fmt.Println(ari)
@@ -225,10 +224,10 @@ func (t *Translation) TransformToLines(lines *[]string) {
 	}
 }
 
-func (t *Translation) GetEnglishTranslationWords(word string, f *os.File) {
+func (t *Translation) GetEnglishTranslationWords(word string, scanner *bufio.Scanner) {
 
-	f.Seek(0, 0)
-	scanner := bufio.NewScanner(f)
+	//f.Seek(0, 0)
+	//scanner := bufio.NewScanner(bytes.NewReader(b))
 
 	pattern := "\t" + word + ",|," + word + ",|," + word + "$" + "|\t" + word + "$"
 	r, err := regexp.Compile(pattern)
