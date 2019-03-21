@@ -8,11 +8,16 @@ import (
 	"os"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	dictscanner "finnish-english-dictionary"
 )
 
+/*
+1. strip license header from data files and copy to this directory
+2. edit the opf header at printOpfHeader()
+*/
 //  ./mobigen.exe utf8 finnish-english-dict.opf
 
 func main() {
@@ -25,7 +30,7 @@ func main() {
 	PrintOpfTailer(f_opf)
 
 	// Open the file and scan it.
-	f, err1 := os.Open("data.adj")
+	f, err1 := os.Open("data.noun")
 	if err1 != nil {
 		fmt.Printf("can not open\n")
 		panic(err1)
@@ -73,19 +78,18 @@ func ScanFile(f *os.File, fw *os.File, f_finn_translations *bufio.Scanner) error
 		translations = append(translations, *t)
 	}
 
+	// TODO: make better middle format than lines
 	var lines []string
 	for i, _ := range translations {
 		translations[i].TransformToLines(&lines)
 	}
+	fmt.Println("start shorting")
 	sortByFinnishAndLen(lines)
-	/*
-		for _, line := range lines {
-			fmt.Printf("'%s'\n", line)
-		}
-	*/
 
+	fmt.Println("start handle dublicates")
 	handleDublicates(&lines)
 
+	fmt.Println("write parsed.txt file")
 	for _, line := range lines {
 		if len(line) > 0 {
 			if line[0] != '-' {
@@ -104,22 +108,8 @@ func ScanFile(f *os.File, fw *os.File, f_finn_translations *bufio.Scanner) error
 			}
 		}
 	}
-
-	f_html, werr2 := os.Create("out0.html")
-	if werr2 != nil {
-		fmt.Printf("can not open\n")
-		panic(werr2)
-	}
-	writeHtmlPageHead(f_html)
-	for _, line := range lines {
-		if len(line) > 0 {
-			if line[0] != '-' {
-				writeHtmlTag(f_html, line)
-			}
-		}
-	}
-	writeHtmlTail(f_html)
-	f_html.Close()
+	fmt.Println("write html files")
+	WriteHtmlFiles(lines)
 	return nil
 }
 
@@ -161,21 +151,88 @@ func handleDublicates(lines *[]string) {
 	}
 }
 
+func WriteHtmlFiles(lines []string) int {
+
+	pages_writen := 0
+	x := WriteHtmlFile(lines, false, 0)
+	//pages_writen = pages_writen + x
+	z := WriteHtmlFile(lines, true, x+1)
+	pages_writen = z
+	return pages_writen
+}
+
+func WriteHtmlFile(lines []string, write_under_scores bool, startId int) int {
+	pages_writen := startId
+	i := 0
+	var f_html *os.File = nil
+	for _, line := range lines {
+		if len(line) == 0 {
+			continue
+		}
+		if line[0] == '-' && write_under_scores == false {
+			continue
+		}
+		if line[0] == '-' {
+			if write_under_scores {
+				if f_html == nil {
+					f_html = createHtmlFile(pages_writen)
+				}
+				writeHtmlTag(f_html, line)
+				i++
+			}
+		} else {
+			if write_under_scores == false {
+				if f_html == nil {
+					f_html = createHtmlFile(pages_writen)
+				}
+				writeHtmlTag(f_html, line)
+				i++
+			}
+		}
+		if i == 999 {
+			writeHtmlTail(f_html)
+			f_html.Close()
+			pages_writen++
+			i = 0
+			f_html = nil
+		}
+	}
+	if (i%999) != 0 && f_html != nil {
+		writeHtmlTail(f_html)
+		f_html.Close()
+	}
+	return pages_writen
+}
+
+func createHtmlFile(pages_writen int) *os.File {
+	var err error
+	var f_html *os.File = nil
+	f_html, err = os.Create("out" + strconv.Itoa(pages_writen) + ".html")
+	if err != nil {
+		fmt.Printf("can not open\n")
+		panic(err)
+	}
+	fmt.Printf("writing %s\n", "out"+strconv.Itoa(pages_writen)+".html")
+	writeHtmlPageHead(f_html)
+	return f_html
+}
+
 func writeHtmlTag(f *os.File, line string) {
 	parts := strings.Split(line, "\t")
 	var fin_re = regexp.MustCompile(`_`)
 	fin_s := fin_re.ReplaceAllString(parts[0], ` `)
 	var re = regexp.MustCompile(`;`)
-	s := re.ReplaceAllString(parts[1], `</p>`+"\r\n"+`<p>`)
+	s := re.ReplaceAllString(parts[1], "\t\t"+`</p>`+"\r\n"+`<p>`)
 	re = regexp.MustCompile(`<p></p>`)
 	s = re.ReplaceAllString(s, ``)
-	f.WriteString(`<mbp:pagebreak/>`)
+	f.WriteString(`<mbp:pagebreak/>` + "\r\n" + "\r\n")
 	f.WriteString(`<idx:entry name="word" scriptable="yes">` + "\r\n" +
-		`<h2>` + "\r\n" +
-		"\t" + `<idx:orth>` + fin_s + `</idx:orth><idx:key key="` + fin_s + `">` + "\r\n" +
-		`</h2>` + "\r\n" +
-		"<p>" + s + "</p>" + "\r\n" +
-		`</idx:entry>`)
+		"\t" + `<h2>` + "\r\n" +
+		"\t\t" + `<idx:orth>` + fin_s + `</idx:orth>` + "\r\n" +
+		"\t\t" + `<idx:key key="` + fin_s + `">` + "\r\n" +
+		"\t\t" + `</h2>` + "\r\n" +
+		"\t\t" + "<p>" + s + "</p>" + "\r\n" +
+		`</idx:entry>` + "\r\n")
 }
 
 func writeHtmlPageHead(f *os.File) {
@@ -228,7 +285,7 @@ func PrintOpfTailer(f *os.File) {
 	f.WriteString(`<!-- list of all the files needed to produce the .prc file -->
 <manifest>
   <item href="en-fi-cover.jpg" id="my-cover-image" media-type="image/jpeg"/>
- <item id="dictionary0" href="en-fi0.html" media-type="text/x-oeb1-document"/>
+ <item id="dictionary0" href="fi-en0.html" media-type="text/x-oeb1-document"/>
 </manifest>
 
 

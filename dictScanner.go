@@ -78,7 +78,7 @@ func ParseLineWords(line string, f_finn_translations *bufio.Scanner) (*Translati
 			continue
 		}
 		//var http_tag_name_end string
-		if ((word[0] >= 'A' && word[0] <= 'Ö') || word[0] == '<' || word[0] == '-') && len(word) > 1 {
+		if ((word[0] >= 'A' && word[0] <= 'Ö') || word[0] == '<' || (word[0] == '-' && len(word) > 2)) && len(word) > 1 {
 			for {
 				cut_end, is_start_tag, is_end_tag, content, tag := ParseHttpTags(word)
 				if is_start_tag {
