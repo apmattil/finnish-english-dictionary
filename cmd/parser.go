@@ -21,19 +21,10 @@ import (
 //  ./mobigen.exe utf8 finnish-english-dict.opf
 
 func main() {
-	html_pages_writen := 0
 	f_opf, err := os.Create("fin-eng.opf")
 	if err != nil {
 		fmt.Printf("can not open %s\n", err.Error())
 		panic(err)
-	}
-	printOpfHeader(f_opf)
-
-	// Open the file and scan it.
-	f, err1 := os.Open("data.noun")
-	if err1 != nil {
-		fmt.Printf("can not open\n")
-		panic(err1)
 	}
 
 	fw, werr := os.Create("parsed.txt")
@@ -51,27 +42,37 @@ func main() {
 	f_finn_translations := bufio.NewScanner(bytes.NewReader(b))
 
 	defer func() {
-		f.Close()
+		//f.Close()
 		fw.Close()
 		//fr.Close()
 		f_opf.Close()
 	}()
 
-	x := 0
-	x, err = ScanFile(f, fw, f_finn_translations)
-	if err != nil {
-		fmt.Printf("handle failed %s\n", err.Error())
-		panic(err)
+	scanFiles := os.Args[1:]
+	html_pages_writen := 0
+	// Open the file and scan it.
+	for i, file_name := range scanFiles {
+		f, err1 := os.Open(file_name)
+		if err1 != nil {
+			fmt.Printf("can not open\n")
+			panic(err1)
+		}
+		fmt.Printf("%d: handling %s\r\n", i, file_name)
+
+		err = ScanFile(f, fw, f_finn_translations, &html_pages_writen)
+		if err != nil {
+			fmt.Printf("handle failed %s\n", err.Error())
+			panic(err)
+		}
 	}
-	html_pages_writen = html_pages_writen + x
+
+	printOpfHeader(f_opf)
 	PrintOpfTailer(f_opf, html_pages_writen)
 
 }
 
-func ScanFile(f *os.File, fw *os.File, f_finn_translations *bufio.Scanner) (int, error) {
+func ScanFile(f *os.File, fw *os.File, f_finn_translations *bufio.Scanner, html_pages_writen *int) error {
 	scanner := bufio.NewScanner(f)
-
-	html_pages_writen := 0
 
 	var translations []dictscanner.Translation
 	for scanner.Scan() {
@@ -115,8 +116,8 @@ func ScanFile(f *os.File, fw *os.File, f_finn_translations *bufio.Scanner) (int,
 		}
 	}
 	fmt.Println("write html files")
-	html_pages_writen = WriteHtmlFiles(lines)
-	return html_pages_writen, nil
+	WriteHtmlFiles(lines, html_pages_writen)
+	return nil
 }
 
 func sortByFinnishAndLen(lines []string) {
@@ -157,17 +158,14 @@ func handleDublicates(lines *[]string) {
 	}
 }
 
-func WriteHtmlFiles(lines []string) int {
-
-	pages_writen := 0
-	x := WriteHtmlFile(lines, false, 0)
+func WriteHtmlFiles(lines []string, pages_writen *int) {
+	WriteHtmlFile(lines, false, pages_writen)
 	//pages_writen = pages_writen + x
-	z := WriteHtmlFile(lines, true, x+1)
-	pages_writen = z
-	return pages_writen
+	//*pages_writen++
+	WriteHtmlFile(lines, true, pages_writen)
 }
 
-func WriteHtmlFile(lines []string, write_under_scores bool, startId int) int {
+func WriteHtmlFile(lines []string, write_under_scores bool, startId *int) {
 	pages_writen := startId
 	i := 0
 	var f_html *os.File = nil
@@ -198,7 +196,7 @@ func WriteHtmlFile(lines []string, write_under_scores bool, startId int) int {
 		if i == 999 {
 			writeHtmlTail(f_html)
 			f_html.Close()
-			pages_writen++
+			*pages_writen++
 			i = 0
 			f_html = nil
 		}
@@ -206,19 +204,19 @@ func WriteHtmlFile(lines []string, write_under_scores bool, startId int) int {
 	if (i%999) != 0 && f_html != nil {
 		writeHtmlTail(f_html)
 		f_html.Close()
+		*pages_writen++
 	}
-	return pages_writen
 }
 
-func createHtmlFile(pages_writen int) *os.File {
+func createHtmlFile(pages_writen *int) *os.File {
 	var err error
 	var f_html *os.File = nil
-	f_html, err = os.Create("out" + strconv.Itoa(pages_writen) + ".html")
+	f_html, err = os.Create("out" + strconv.Itoa(*pages_writen) + ".html")
 	if err != nil {
 		fmt.Printf("can not open\n")
 		panic(err)
 	}
-	fmt.Printf("writing %s\n", "out"+strconv.Itoa(pages_writen)+".html")
+	fmt.Printf("writing %s\n", "out"+strconv.Itoa(*pages_writen)+".html")
 	writeHtmlPageHead(f_html)
 	return f_html
 }
@@ -293,22 +291,23 @@ func PrintOpfTailer(f *os.File, num_of_pages int) {
   <item href="english-finnish-cover.jpg" id="my-cover-image" media-type="image/jpeg"/>` + "\r\n")
 
 	f.WriteString("\t" + `<item id="title-page" href="title-page.html" media-type="text/x-oeb1-document"/>` + "\r\n")
-	for i := 0; i <= num_of_pages; i++ {
+	for i := 0; i < num_of_pages; i++ {
 		f.WriteString("\t" + `<item id="dictionary` + strconv.Itoa(i) + `" href="out` + strconv.Itoa(i) + `.html" media-type="text/x-oeb1-document"/>` + "\r\n")
 	}
 	f.WriteString(`</manifest>` + "\r\n")
 
 	f.WriteString(`<spine>` + "\r\n")
 	f.WriteString("\t" + `<itemref idref="title-page"/>` + "\r\n")
-	for j := 0; j <= num_of_pages; j++ {
+	for j := 0; j < num_of_pages; j++ {
 		f.WriteString("\t" + `<itemref idref="dictionary` + strconv.Itoa(j) + `"/>` + "\r\n")
 	}
 	f.WriteString(`</spine>` + "\r\n")
 
-	f.WriteString(`<tours/>
+	f.WriteString(`
 <guide> <reference type="search" title="Dictionary Search" onclick= "index_search()"/> </guide>
 </package>
 `)
+	fmt.Printf("num_of_pages %d", num_of_pages)
 }
 
 /*

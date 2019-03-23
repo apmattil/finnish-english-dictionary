@@ -66,8 +66,6 @@ var ari int
 
 func ParseLineWords(line string, f_finn_translations *bufio.Scanner) (*Translation, error) {
 	parts := strings.Split(line, " ")
-	ari++
-	fmt.Println(ari)
 	var t Translation
 	var inside_comment_tag string = ""
 	for _, word := range parts {
