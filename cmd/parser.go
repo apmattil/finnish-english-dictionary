@@ -15,8 +15,15 @@ import (
 )
 
 /*
+0. generate out.txt containing finnish to english tab separated translation file (see https://github.com/apmattil/finnish-english-dictionary)
 1. strip license header from data files and copy to this directory
-2. edit the opf header at printOpfHeader()
+2. make title-page.html_pages_writen
+3. make cover jpg
+4. edit the opf header at printOpfHeader() to include cover image and page.
+5. run with datafiles e.g  ./parser.exe data.adj data.adv data.noun data.verb
+6. copy generated out*.html, fi-eng.opf, cover-image file and title-page.html to own directory e.g rel
+7. get mobgen.exe ( http://web.archive.org/web/20070306012409/http://www.mobipocket.com/soft/prcgen/mobigen.zip)
+8.  cd rel ; ./mobigen.exe utf8 fin-eng.opf
 */
 //  ./mobigen.exe utf8 finnish-english-dict.opf
 

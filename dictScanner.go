@@ -133,6 +133,9 @@ func ParseLineWords(line string, f_finn_translations *bufio.Scanner) (*Translati
 			found = true
 			continue
 		}
+		if word == "[empty]" {
+			return nil, fmt.Errorf("english translation is empty: %s", line)
+		}
 		if found == true && len(word) > 0 {
 			t.English = append(t.English, word)
 		}
