@@ -50,6 +50,7 @@ func main() {
 
 	scanFiles := os.Args[1:]
 	html_pages_writen := 0
+	var translations []dictscanner.Translation
 	// Open the file and scan it.
 	for i, file_name := range scanFiles {
 		f, err1 := os.Open(file_name)
@@ -59,22 +60,26 @@ func main() {
 		}
 		fmt.Printf("%d: handling %s\r\n", i, file_name)
 
-		err = ScanFile(f, fw, f_finn_translations, &html_pages_writen)
+		err = ScanFile(f, &translations, f_finn_translations, &html_pages_writen)
 		if err != nil {
-			fmt.Printf("handle failed %s\n", err.Error())
+			fmt.Printf("scan file failed %s\n", err.Error())
 			panic(err)
 		}
 	}
 
+	err = HandleTranslations(translations, fw, &html_pages_writen)
+	if err != nil {
+		fmt.Printf("handle translations failed %s\n", err.Error())
+		panic(err)
+	}
 	printOpfHeader(f_opf)
 	PrintOpfTailer(f_opf, html_pages_writen)
 
 }
 
-func ScanFile(f *os.File, fw *os.File, f_finn_translations *bufio.Scanner, html_pages_writen *int) error {
+func ScanFile(f *os.File, translations *[]dictscanner.Translation, f_finn_translations *bufio.Scanner, html_pages_writen *int) error {
 	scanner := bufio.NewScanner(f)
 
-	var translations []dictscanner.Translation
 	for scanner.Scan() {
 		line := scanner.Text()
 		t, err := dictscanner.ParseLineWords(line, f_finn_translations)
@@ -82,9 +87,12 @@ func ScanFile(f *os.File, fw *os.File, f_finn_translations *bufio.Scanner, html_
 			fmt.Println(err.Error())
 			continue
 		}
-		translations = append(translations, *t)
+		*translations = append(*translations, *t)
 	}
+	return nil
+}
 
+func HandleTranslations(translations []dictscanner.Translation, fw *os.File, html_pages_writen *int) error {
 	// TODO: make better middle format than lines
 	var lines []string
 	for i, _ := range translations {
